@@ -14,6 +14,12 @@
 				android:name="android.accessibilityservice"
 				android:resource="@xml/accessibility_service_config" />
 		</service>
+		
+		<!-- Overlay Service declaration -->
+		<service
+			android:name=".Platforms.Android.Services.OverlayService"
+			android:exported="false"
+			android:foregroundServiceType="mediaPlayback" />
 	</application>
 	<!-- Network state and internet permissions (default) -->
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -24,6 +30,10 @@
 	
 	<!-- Permission for accessibility service to simulate taps -->
 	<uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
+	
+	<!-- Permission for foreground services -->
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 	
 	<!-- Permission for storing macros locally -->
 	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />

@@ -22,5 +22,10 @@ namespace TouchMacro
         {
             await _viewModel.OpenAccessibilitySettingsAsync();
         }
+        
+        private async void OnRequestForegroundServicePermissionClicked(object sender, EventArgs e)
+        {
+            await _viewModel.RequestForegroundServicePermissionAsync();
+        }
     }
 }

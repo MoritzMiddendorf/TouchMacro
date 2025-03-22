@@ -9,18 +9,20 @@ using Microsoft.Extensions.Logging;
 using TouchMacro.Services;
 using System;
 using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Devices;
 
 // Using aliases to resolve ambiguous references
 using AndroidView = global::Android.Views.View;
 using AndroidImageButton = global::Android.Widget.ImageButton;
 using AndroidButton = global::Android.Widget.Button;
+using Android.Content.PM;
 
 namespace TouchMacro.Platforms.Android.Services
 {
     /// <summary>
     /// Android service for showing an overlay with macro controls
     /// </summary>
-    [Service(Exported = false)]
+    [Service(Exported = false, ForegroundServiceType = global::Android.Content.PM.ForegroundService.TypeMediaPlayback)]
     public class OverlayService : Service
     {
         // Constants
@@ -155,8 +157,15 @@ namespace TouchMacro.Platforms.Android.Services
         {
             _logger?.LogInformation("Overlay service started");
             
-            // Start foreground service with notification
-            StartForeground(NotificationId, CreateNotification());
+            // Start foreground service with notification and type
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.Q) // Android 10 (API 29) or higher
+            {
+                StartForeground(NotificationId, CreateNotification(), ForegroundService.TypeMediaPlayback);
+            }
+            else
+            {
+                StartForeground(NotificationId, CreateNotification());
+            }
             
             // Show the overlay if it's not already showing
             if (!_isOverlayShown)
@@ -261,26 +270,18 @@ namespace TouchMacro.Platforms.Android.Services
         /// </summary>
         private void OnRecordButtonClick(object sender, EventArgs e)
         {
-            try
+            var isRecording = _recorderService?.IsRecording ?? false;
+            
+            if (isRecording)
             {
-                var isRecording = _recorderService?.IsRecording ?? false;
-                
-                if (isRecording)
-                {
-                    // Show dialog to name and save the macro
-                    ShowSaveMacroDialog();
-                }
-                else
-                {
-                    // Start recording
-                    _recorderService?.StartRecording();
-                    UpdateButtonStates();
-                }
+                // Show dialog to name and save the macro
+                ShowSaveMacroDialog();
             }
-            catch (Exception ex)
+            else
             {
-                _logger?.LogError(ex, "Error handling record button click");
-                Toast.MakeText(this, "Error: " + ex.Message, ToastLength.Short).Show();
+                // Start recording
+                _recorderService?.StartRecording();
+                UpdateButtonStates();
             }
         }
         
@@ -289,58 +290,56 @@ namespace TouchMacro.Platforms.Android.Services
         /// </summary>
         private void ShowSaveMacroDialog()
         {
-            try
+            // Get the current foreground activity context
+            var activity = Platform.CurrentActivity;
+            if (activity == null)
             {
-                // Create dialog
-                var dialog = new Dialog(this);
-                dialog.SetContentView(Resource.Layout.save_macro_dialog);
-                dialog.SetCancelable(false);
-                dialog.SetTitle("Save Macro");
-                
-                // Get views
-                var nameEditText = dialog.FindViewById<EditText>(Resource.Id.macroNameEditText);
-                var saveButton = dialog.FindViewById<AndroidButton>(Resource.Id.saveButton);
-                var cancelButton = dialog.FindViewById<AndroidButton>(Resource.Id.cancelButton);
-                
-                // Set up cancel button
-                cancelButton.Click += (s, args) => {
-                    _recorderService?.CancelRecording();
-                    UpdateButtonStates();
-                    dialog.Dismiss();
-                };
-                
-                // Set up save button
-                saveButton.Click += async (s, args) => {
-                    var name = nameEditText.Text?.Trim() ?? "Unnamed Macro";
-                    if (string.IsNullOrEmpty(name))
-                    {
-                        name = "Unnamed Macro";
-                    }
-                    
-                    var macroId = await _recorderService.StopRecordingAndSaveAsync(name);
-                    UpdateButtonStates();
-                    
-                    if (macroId > 0)
-                    {
-                        Toast.MakeText(this, "Macro saved", ToastLength.Short).Show();
-                    }
-                    else
-                    {
-                        Toast.MakeText(this, "No actions recorded", ToastLength.Short).Show();
-                    }
-                    
-                    dialog.Dismiss();
-                };
-                
-                dialog.Show();
+                throw new InvalidOperationException("Cannot show dialog: No foreground activity found");
             }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error showing save dialog");
+            
+            // Create dialog using the activity context
+            var dialog = new Dialog(activity);
+            dialog.SetContentView(Resource.Layout.save_macro_dialog);
+            dialog.SetCancelable(false);
+            dialog.SetTitle("Save Macro");
+            
+            // Get views
+            var nameEditText = dialog.FindViewById<EditText>(Resource.Id.macroNameEditText);
+            var saveButton = dialog.FindViewById<AndroidButton>(Resource.Id.saveButton);
+            var cancelButton = dialog.FindViewById<AndroidButton>(Resource.Id.cancelButton);
+            
+            // Set up cancel button
+            cancelButton.Click += (s, args) => {
                 _recorderService?.CancelRecording();
                 UpdateButtonStates();
-                Toast.MakeText(this, "Error saving macro", ToastLength.Short).Show();
-            }
+                dialog.Dismiss();
+            };
+            
+            // Set up save button
+            saveButton.Click += async (s, args) => {
+                var name = nameEditText.Text?.Trim() ?? "Unnamed Macro";
+                if (string.IsNullOrEmpty(name))
+                {
+                    name = "Unnamed Macro";
+                }
+                
+                var macroId = await _recorderService.StopRecordingAndSaveAsync(name);
+                UpdateButtonStates();
+                
+                if (macroId > 0)
+                {
+                    Toast.MakeText(this, "Macro saved", ToastLength.Short).Show();
+                }
+                else
+                {
+                    Toast.MakeText(this, "No actions recorded", ToastLength.Short).Show();
+                }
+                
+                dialog.Dismiss();
+            };
+            
+            // This will throw the exception if there's a problem, which will be caught by our global handler
+            dialog.Show();
         }
         
         /// <summary>
@@ -348,25 +347,17 @@ namespace TouchMacro.Platforms.Android.Services
         /// </summary>
         private void OnPlayButtonClick(object sender, EventArgs e)
         {
-            try
+            var isPlaying = _playerService?.IsPlaying ?? false;
+            
+            if (isPlaying)
             {
-                var isPlaying = _playerService?.IsPlaying ?? false;
-                
-                if (isPlaying)
-                {
-                    // Stop playback
-                    _playerService?.StopPlayback();
-                }
-                else
-                {
-                    // Show macro selection dialog
-                    ShowSelectMacroDialog();
-                }
+                // Stop playback
+                _playerService?.StopPlayback();
             }
-            catch (Exception ex)
+            else
             {
-                _logger?.LogError(ex, "Error handling play button click");
-                Toast.MakeText(this, "Error: " + ex.Message, ToastLength.Short).Show();
+                // Show macro selection dialog
+                ShowSelectMacroDialog();
             }
         }
         
@@ -375,42 +366,41 @@ namespace TouchMacro.Platforms.Android.Services
         /// </summary>
         private async void ShowSelectMacroDialog()
         {
-            try
+            // Get the current foreground activity context
+            var activity = Platform.CurrentActivity;
+            if (activity == null)
             {
-                // Get all macros from database service
-                var databaseService = IPlatformApplication.Current.Services.GetService<DatabaseService>();
-                var macros = await databaseService.GetAllMacrosAsync();
-                
-                if (macros == null || macros.Count == 0)
-                {
-                    Toast.MakeText(this, "No macros found", ToastLength.Short).Show();
-                    return;
-                }
-                
-                // Create adapter for the list
-                var adapter = new ArrayAdapter<string>(
-                    this,
-                    global::Android.Resource.Layout.SimpleListItem1,
-                    macros.ConvertAll(m => $"{m.Name} ({m.ActionCount} actions)")
-                );
-                
-                // Create and show the dialog
-                var builder = new AlertDialog.Builder(this);
-                builder.SetTitle("Select Macro");
-                
-                builder.SetAdapter(adapter, (sender, args) => {
-                    var selectedMacro = macros[args.Which];
-                    StartMacroPlayback(selectedMacro.Id);
-                });
-                
-                builder.SetNegativeButton("Cancel", (sender, args) => { });
-                builder.Show();
+                throw new InvalidOperationException("Cannot show dialog: No foreground activity found");
             }
-            catch (Exception ex)
+            
+            // Get all macros from database service
+            var databaseService = IPlatformApplication.Current.Services.GetService<DatabaseService>();
+            var macros = await databaseService.GetAllMacrosAsync();
+            
+            if (macros == null || macros.Count == 0)
             {
-                _logger?.LogError(ex, "Error showing macro selection dialog");
-                Toast.MakeText(this, "Error loading macros", ToastLength.Short).Show();
+                Toast.MakeText(this, "No macros found", ToastLength.Short).Show();
+                return;
             }
+            
+            // Create adapter for the list
+            var adapter = new ArrayAdapter<string>(
+                activity,
+                global::Android.Resource.Layout.SimpleListItem1,
+                macros.ConvertAll(m => $"{m.Name} ({m.ActionCount} actions)")
+            );
+            
+            // Create and show the dialog
+            var builder = new AlertDialog.Builder(activity);
+            builder.SetTitle("Select Macro");
+            
+            builder.SetAdapter(adapter, (sender, args) => {
+                var selectedMacro = macros[args.Which];
+                StartMacroPlayback(selectedMacro.Id);
+            });
+            
+            builder.SetNegativeButton("Cancel", (sender, args) => { });
+            builder.Show();
         }
         
         /// <summary>
@@ -421,16 +411,8 @@ namespace TouchMacro.Platforms.Android.Services
             if (_playerService == null || macroId <= 0)
                 return;
                 
-            try
-            {
-                // Start the playback
-                await _playerService.PlayMacroAsync(macroId);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error playing macro");
-                Toast.MakeText(this, "Error playing macro", ToastLength.Short).Show();
-            }
+            // Start the playback - any exceptions will be caught by global handler
+            await _playerService.PlayMacroAsync(macroId);
         }
         
         /// <summary>
@@ -438,17 +420,10 @@ namespace TouchMacro.Platforms.Android.Services
         /// </summary>
         private void OnSettingsButtonClick(object sender, EventArgs e)
         {
-            try
-            {
-                // Launch the main app activity
-                var intent = new Intent(this, typeof(MainActivity));
-                intent.SetFlags(ActivityFlags.NewTask);
-                StartActivity(intent);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error opening settings");
-            }
+            // Launch the main app activity
+            var intent = new Intent(this, typeof(MainActivity));
+            intent.SetFlags(ActivityFlags.NewTask);
+            StartActivity(intent);
         }
         
         /// <summary>

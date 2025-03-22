@@ -68,16 +68,42 @@ namespace TouchMacro.Services
         }
         
         /// <summary>
+        /// Checks if the foreground service permission is granted
+        /// </summary>
+        public async Task<bool> CheckForegroundServicePermissionAsync()
+        {
+#if ANDROID
+            return await CheckPlatformForegroundServicePermission();
+#else
+            _logger.LogWarning("Foreground service permission check is only implemented for Android");
+            return true;
+#endif
+        }
+        
+        /// <summary>
+        /// Requests the foreground service permission
+        /// </summary>
+        public async Task RequestForegroundServicePermissionAsync()
+        {
+#if ANDROID
+            await RequestPlatformForegroundServicePermission();
+#else
+            _logger.LogWarning("Foreground service permission request is only implemented for Android");
+#endif
+        }
+        
+        /// <summary>
         /// Checks if all required permissions are granted
         /// </summary>
         public async Task<bool> CheckAllPermissionsAsync()
         {
             var hasOverlay = await CheckOverlayPermissionAsync();
             var hasAccessibility = await CheckAccessibilityServiceEnabledAsync();
+            var hasForegroundService = await CheckForegroundServicePermissionAsync();
             
-            _logger.LogInformation($"Permission status - Overlay: {hasOverlay}, Accessibility: {hasAccessibility}");
+            _logger.LogInformation($"Permission status - Overlay: {hasOverlay}, Accessibility: {hasAccessibility}, ForegroundService: {hasForegroundService}");
             
-            return hasOverlay && hasAccessibility;
+            return hasOverlay && hasAccessibility && hasForegroundService;
         }
         
 #if ANDROID
@@ -132,6 +158,33 @@ namespace TouchMacro.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error opening accessibility settings");
+            }
+        }
+        
+        private async Task<bool> CheckPlatformForegroundServicePermission()
+        {
+            try
+            {
+                // Android-specific implementation in platform code
+                return await TouchMacro.Platforms.Android.Services.PermissionHelper.CheckForegroundServicePermissionAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking foreground service permission");
+                return false;
+            }
+        }
+        
+        private async Task RequestPlatformForegroundServicePermission()
+        {
+            try
+            {
+                // Android-specific implementation in platform code
+                await TouchMacro.Platforms.Android.Services.PermissionHelper.RequestForegroundServicePermissionAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error requesting foreground service permission");
             }
         }
 #endif

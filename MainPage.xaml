@@ -10,23 +10,37 @@
     <Grid Padding="16" RowDefinitions="Auto,*">
         <!-- Permission Info Panel -->
         <VerticalStackLayout Grid.Row="0" Margin="0,0,0,16" 
-                             IsVisible="{Binding HasOverlayPermission, Converter={StaticResource InvertedBoolConverter}}">
+                             IsVisible="{Binding AllPermissionsGranted, Converter={StaticResource InvertedBoolConverter}}">
             <Label Text="Permissions Required" Style="{StaticResource Headline}" Margin="0,0,0,8" />
             
             <!-- Overlay Permission -->
-            <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4">
                 <Label Text="Display Over Other Apps" VerticalOptions="Center" />
-                <Button Grid.Column="1" Text="Grant" 
+                <Button Grid.Column="1" Text="Grant Permission" 
                         Clicked="OnRequestOverlayPermissionClicked"
                         IsVisible="{Binding HasOverlayPermission, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Grid.Column="2" Text="✓" TextColor="Green" FontSize="20" FontAttributes="Bold" Margin="8,0,0,0"
+                       IsVisible="{Binding HasOverlayPermission}" VerticalOptions="Center" />
             </Grid>
             
             <!-- Accessibility Permission -->
-            <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4">
                 <Label Text="Accessibility Service" VerticalOptions="Center" />
-                <Button Grid.Column="1" Text="Enable" 
+                <Button Grid.Column="1" Text="Grant Permission" 
                         Clicked="OnOpenAccessibilitySettingsClicked"
                         IsVisible="{Binding HasAccessibilityPermission, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Grid.Column="2" Text="✓" TextColor="Green" FontSize="20" FontAttributes="Bold" Margin="8,0,0,0"
+                       IsVisible="{Binding HasAccessibilityPermission}" VerticalOptions="Center" />
+            </Grid>
+            
+            <!-- Foreground Service Permission -->
+            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4">
+                <Label Text="Foreground Service" VerticalOptions="Center" />
+                <Button Grid.Column="1" Text="Grant Permission" 
+                        Clicked="OnRequestForegroundServicePermissionClicked"
+                        IsVisible="{Binding HasForegroundServicePermission, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Grid.Column="2" Text="✓" TextColor="Green" FontSize="20" FontAttributes="Bold" Margin="8,0,0,0"
+                       IsVisible="{Binding HasForegroundServicePermission}" VerticalOptions="Center" />
             </Grid>
             
             <Label Text="These permissions are required to record and play tap macros." 

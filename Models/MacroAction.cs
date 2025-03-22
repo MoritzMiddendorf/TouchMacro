@@ -1,20 +1,24 @@
 using System;
+using SQLite;
 
 namespace TouchMacro.Models
 {
     /// <summary>
     /// Represents a single tap action in a macro
     /// </summary>
+    [Table("MacroAction")]
     public class MacroAction
     {
         /// <summary>
         /// Unique identifier for the action
         /// </summary>
+        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
         
         /// <summary>
         /// The ID of the macro this action belongs to
         /// </summary>
+        [Indexed]
         public int MacroId { get; set; }
         
         /// <summary>

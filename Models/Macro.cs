@@ -1,16 +1,19 @@
 using System;
 using System.Collections.Generic;
+using SQLite;
 
 namespace TouchMacro.Models
 {
     /// <summary>
     /// Represents a complete macro with multiple tap actions
     /// </summary>
+    [Table("Macro")]
     public class Macro
     {
         /// <summary>
         /// Unique identifier for the macro
         /// </summary>
+        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
         
         /// <summary>
@@ -31,6 +34,7 @@ namespace TouchMacro.Models
         /// <summary>
         /// List of actions that make up this macro (not stored in database directly)
         /// </summary>
+        [Ignore]
         public List<MacroAction> Actions { get; set; } = new List<MacroAction>();
     }
 }
