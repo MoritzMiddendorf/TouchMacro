@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+	<application android:allowBackup="true" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true">
+		<!-- Accessibility Service declaration for tap simulation -->
+		<service
+			android:name=".Platforms.Android.Services.MacroAccessibilityService"
+			android:label="TouchMacro"
+			android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+			android:exported="false">
+			<intent-filter>
+				<action android:name="android.accessibilityservice.AccessibilityService" />
+			</intent-filter>
+			<meta-data
+				android:name="android.accessibilityservice"
+				android:resource="@xml/accessibility_service_config" />
+		</service>
+	</application>
+	<!-- Network state and internet permissions (default) -->
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+	<uses-permission android:name="android.permission.INTERNET" />
+	
+	<!-- Permission for overlay UI to display over other apps -->
+	<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+	
+	<!-- Permission for accessibility service to simulate taps -->
+	<uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
+	
+	<!-- Permission for storing macros locally -->
+	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+</manifest>

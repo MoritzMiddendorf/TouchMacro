@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TouchMacro</string>
+    <string name="accessibility_service_description">Enables TouchMacro to simulate taps on the screen for macro automation. This permission is required to playback recorded taps.</string>
+</resources>

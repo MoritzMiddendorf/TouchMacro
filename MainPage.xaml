@@ -1,0 +1,82 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:TouchMacro.ViewModels"
+             xmlns:model="clr-namespace:TouchMacro.Models"
+             x:DataType="vm:MacroListViewModel"
+             x:Class="TouchMacro.MainPage"
+             Title="TouchMacro">
+
+    <Grid Padding="16" RowDefinitions="Auto,*">
+        <!-- Permission Info Panel -->
+        <VerticalStackLayout Grid.Row="0" Margin="0,0,0,16" 
+                             IsVisible="{Binding HasOverlayPermission, Converter={StaticResource InvertedBoolConverter}}">
+            <Label Text="Permissions Required" Style="{StaticResource Headline}" Margin="0,0,0,8" />
+            
+            <!-- Overlay Permission -->
+            <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+                <Label Text="Display Over Other Apps" VerticalOptions="Center" />
+                <Button Grid.Column="1" Text="Grant" 
+                        Clicked="OnRequestOverlayPermissionClicked"
+                        IsVisible="{Binding HasOverlayPermission, Converter={StaticResource InvertedBoolConverter}}" />
+            </Grid>
+            
+            <!-- Accessibility Permission -->
+            <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+                <Label Text="Accessibility Service" VerticalOptions="Center" />
+                <Button Grid.Column="1" Text="Enable" 
+                        Clicked="OnOpenAccessibilitySettingsClicked"
+                        IsVisible="{Binding HasAccessibilityPermission, Converter={StaticResource InvertedBoolConverter}}" />
+            </Grid>
+            
+            <Label Text="These permissions are required to record and play tap macros." 
+                   Style="{StaticResource BodyS}" TextColor="Gray" Margin="0,8,0,0" />
+        </VerticalStackLayout>
+        
+        <!-- Macro List View -->
+        <RefreshView Grid.Row="1" IsRefreshing="{Binding IsRefreshing}"
+                     Command="{Binding RefreshCommand}">
+            <CollectionView ItemsSource="{Binding Macros}"
+                            EmptyView="No macros found. Start the overlay to record a new macro."
+                            SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="model:Macro">
+                        <SwipeView>
+                            <SwipeView.RightItems>
+                                <SwipeItems Mode="Execute">
+                                    <SwipeItem Text="Delete" 
+                                              BackgroundColor="Red"
+                                              Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MacroListViewModel}}, Path=DeleteCommand}"
+                                              CommandParameter="{Binding .}" />
+                                </SwipeItems>
+                            </SwipeView.RightItems>
+                            
+                            <Grid Padding="16" ColumnDefinitions="*,Auto,Auto">
+                                <VerticalStackLayout Spacing="4" Grid.Column="0">
+                                    <Label Text="{Binding Name}" FontSize="16" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                                    <HorizontalStackLayout Spacing="8">
+                                        <Label Text="{Binding ActionCount, StringFormat='{0} actions'}" 
+                                               TextColor="Gray" FontSize="12" />
+                                        <Label Text="{Binding CreatedAt, StringFormat='{0:g}'}" 
+                                               TextColor="Gray" FontSize="12" />
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+                            </Grid>
+                        </SwipeView>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+        
+        <!-- Floating Start Button -->
+        <Button
+            Grid.Row="1"
+            Text="Start Overlay"
+            Command="{Binding StartOverlayCommand}"
+            HorizontalOptions="Center"
+            VerticalOptions="End"
+            Margin="0,0,0,24" />
+        
+    </Grid>
+
+</ContentPage>
