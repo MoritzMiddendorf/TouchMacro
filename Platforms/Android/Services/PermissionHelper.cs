@@ -20,14 +20,8 @@ namespace TouchMacro.Platforms.Android.Services
         /// </summary>
         public static Task<bool> CheckOverlayPermissionAsync()
         {
-            // On Android 6.0+ (API level 23+), check for overlay permission
-            if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
-            {
-                return Task.FromResult(Settings.CanDrawOverlays(Platform.CurrentActivity));
-            }
-            
-            // On older versions, this permission is granted by default
-            return Task.FromResult(true);
+            // For API 26+ (Android 8.0+), we always check overlay permission
+            return Task.FromResult(Settings.CanDrawOverlays(Platform.CurrentActivity));
         }
         
         /// <summary>
@@ -35,12 +29,10 @@ namespace TouchMacro.Platforms.Android.Services
         /// </summary>
         public static Task RequestOverlayPermissionAsync()
         {
-            if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
-            {
-                var intent = new Intent(Settings.ActionManageOverlayPermission);
-                intent.SetData(global::Android.Net.Uri.Parse($"package:{Platform.CurrentActivity.PackageName}"));
-                Platform.CurrentActivity.StartActivity(intent);
-            }
+            // For API 26+ (Android 8.0+), we always need to request this permission explicitly
+            var intent = new Intent(Settings.ActionManageOverlayPermission);
+            intent.SetData(global::Android.Net.Uri.Parse($"package:{Platform.CurrentActivity.PackageName}"));
+            Platform.CurrentActivity.StartActivity(intent);
             
             return Task.CompletedTask;
         }

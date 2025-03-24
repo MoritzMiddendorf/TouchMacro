@@ -25,6 +25,7 @@ namespace TouchMacro.Services
 #if ANDROID
             return await CheckPlatformOverlayPermission();
 #else
+            await Task.CompletedTask;
             _logger.LogWarning("Overlay permission check is only implemented for Android");
             return true;
 #endif
@@ -38,6 +39,7 @@ namespace TouchMacro.Services
 #if ANDROID
             await RequestPlatformOverlayPermission();
 #else
+            await Task.CompletedTask;
             _logger.LogWarning("Overlay permission request is only implemented for Android");
 #endif
         }
@@ -50,6 +52,7 @@ namespace TouchMacro.Services
 #if ANDROID
             return await CheckPlatformAccessibilityService();
 #else
+            await Task.CompletedTask;
             _logger.LogWarning("Accessibility service check is only implemented for Android");
             return true;
 #endif
@@ -63,6 +66,7 @@ namespace TouchMacro.Services
 #if ANDROID
             await OpenPlatformAccessibilitySettings();
 #else
+            await Task.CompletedTask;
             _logger.LogWarning("Opening accessibility settings is only implemented for Android");
 #endif
         }
@@ -75,6 +79,7 @@ namespace TouchMacro.Services
 #if ANDROID
             return await CheckPlatformForegroundServicePermission();
 #else
+            await Task.CompletedTask;
             _logger.LogWarning("Foreground service permission check is only implemented for Android");
             return true;
 #endif
@@ -88,6 +93,7 @@ namespace TouchMacro.Services
 #if ANDROID
             await RequestPlatformForegroundServicePermission();
 #else
+            await Task.CompletedTask;
             _logger.LogWarning("Foreground service permission request is only implemented for Android");
 #endif
         }

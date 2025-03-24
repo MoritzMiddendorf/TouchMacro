@@ -90,9 +90,7 @@ namespace TouchMacro.Platforms.Android.Services
             _layoutParams = new WindowManagerLayoutParams(
                 ViewGroup.LayoutParams.WrapContent,
                 ViewGroup.LayoutParams.WrapContent,
-                Build.VERSION.SdkInt >= BuildVersionCodes.O
-                    ? WindowManagerTypes.ApplicationOverlay
-                    : WindowManagerTypes.Phone,
+                WindowManagerTypes.ApplicationOverlay, // API 26+ (Android 8.0+) only uses ApplicationOverlay
                 WindowManagerFlags.NotFocusable,
                 Format.Translucent
             );
@@ -108,20 +106,18 @@ namespace TouchMacro.Platforms.Android.Services
         /// </summary>
         private void CreateNotificationChannel()
         {
-            if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+            // API 26+ (Android 8.0+) always requires a notification channel
+            var channel = new NotificationChannel(
+                NotificationChannelId,
+                "TouchMacro Overlay",
+                NotificationImportance.Low
+            )
             {
-                var channel = new NotificationChannel(
-                    NotificationChannelId,
-                    "TouchMacro Overlay",
-                    NotificationImportance.Low
-                )
-                {
-                    Description = "Notification channel for TouchMacro overlay service"
-                };
-                
-                var notificationManager = GetSystemService(NotificationService).JavaCast<NotificationManager>();
-                notificationManager.CreateNotificationChannel(channel);
-            }
+                Description = "Notification channel for TouchMacro overlay service"
+            };
+            
+            var notificationManager = GetSystemService(NotificationService).JavaCast<NotificationManager>();
+            notificationManager.CreateNotificationChannel(channel);
         }
         
         /// <summary>
@@ -136,16 +132,12 @@ namespace TouchMacro.Platforms.Android.Services
                 PendingIntentFlags.Immutable
             );
             
-            var notificationBuilder = new Notification.Builder(this)
+            // API 26+ (Android 8.0+) always requires a channel ID
+            var notificationBuilder = new Notification.Builder(this, NotificationChannelId)
                 .SetContentTitle("TouchMacro")
                 .SetContentText("TouchMacro overlay is active")
                 .SetSmallIcon(Resource.Mipmap.appicon)
                 .SetContentIntent(pendingIntent);
-                
-            if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
-            {
-                notificationBuilder.SetChannelId(NotificationChannelId);
-            }
             
             return notificationBuilder.Build();
         }
@@ -158,12 +150,15 @@ namespace TouchMacro.Platforms.Android.Services
             _logger?.LogInformation("Overlay service started");
             
             // Start foreground service with notification and type
-            if (Build.VERSION.SdkInt >= BuildVersionCodes.Q) // Android 10 (API 29) or higher
+            // API 29+ requires foreground service type, but we target API 26, so we use this safely
+            // because we have appropriate fallback behavior for API 26-28
+            try
             {
                 StartForeground(NotificationId, CreateNotification(), ForegroundService.TypeMediaPlayback);
             }
-            else
+            catch (Java.Lang.NoSuchMethodError)
             {
+                // Fallback for API 26-28
                 StartForeground(NotificationId, CreateNotification());
             }
             
@@ -274,6 +269,10 @@ namespace TouchMacro.Platforms.Android.Services
             
             if (isRecording)
             {
+                // Update button states immediately to provide visual feedback
+                _recorderService.IsRecording = false;  // Temporarily set to false for visual update
+                UpdateButtonStates();
+                
                 // Show dialog to name and save the macro
                 ShowSaveMacroDialog();
             }
@@ -288,13 +287,20 @@ namespace TouchMacro.Platforms.Android.Services
         /// <summary>
         /// Shows a dialog to save the recorded macro
         /// </summary>
-        private void ShowSaveMacroDialog()
+        public void ShowSaveMacroDialog()
         {
             // Get the current foreground activity context
             var activity = Platform.CurrentActivity;
+            
+            // If no activity is in foreground, launch the main activity
             if (activity == null)
             {
-                throw new InvalidOperationException("Cannot show dialog: No foreground activity found");
+                // Launch the main app activity
+                var intent = new Intent(this, typeof(MainActivity));
+                intent.SetFlags(ActivityFlags.NewTask);
+                intent.PutExtra("showSaveDialog", true); // Signal to show the save dialog when activity starts
+                StartActivity(intent);
+                return;
             }
             
             // Create dialog using the activity context
@@ -311,7 +317,7 @@ namespace TouchMacro.Platforms.Android.Services
             // Set up cancel button
             cancelButton.Click += (s, args) => {
                 _recorderService?.CancelRecording();
-                UpdateButtonStates();
+                UpdateButtonStates(); // Ensure buttons are updated
                 dialog.Dismiss();
             };
             
@@ -338,7 +344,7 @@ namespace TouchMacro.Platforms.Android.Services
                 dialog.Dismiss();
             };
             
-            // This will throw the exception if there's a problem, which will be caught by our global handler
+            // Show the dialog
             dialog.Show();
         }
         

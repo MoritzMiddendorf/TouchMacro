@@ -303,14 +303,8 @@ namespace TouchMacro.ViewModels
                 var context = Android.App.Application.Context;
                 var intent = new Android.Content.Intent(context, typeof(TouchMacro.Platforms.Android.Services.OverlayService));
                 
-                if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.O)
-                {
-                    context.StartForegroundService(intent);
-                }
-                else
-                {
-                    context.StartService(intent);
-                }
+                // For API 26+ (Android 8.0+), we always use StartForegroundService
+                context.StartForegroundService(intent);
                 
                 _logger.LogInformation("Started overlay service");
 #else

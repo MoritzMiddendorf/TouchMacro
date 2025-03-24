@@ -88,24 +88,17 @@ namespace TouchMacro.Platforms.Android.Services
             {
                 _logger?.LogInformation($"Simulating tap at ({x}, {y})");
                 
-                if (Build.VERSION.SdkInt >= BuildVersionCodes.N)
-                {
-                    // Create a tap gesture using the GestureDescription API (Android 7.0+)
-                    _gestureBuilder = new GestureDescription.Builder();
-                    var path = new global::Android.Graphics.Path();
-                    path.MoveTo(x, y);
-                    
-                    // Add the path to the gesture - duration 1ms, starting at 0ms
-                    _gestureBuilder.AddStroke(new GestureDescription.StrokeDescription(path, 0, 1));
-                    
-                    // Dispatch the gesture
-                    return DispatchGesture(_gestureBuilder.Build(), null, null);
-                }
-                else
-                {
-                    _logger?.LogWarning("Tap simulation requires Android 7.0 or higher");
-                    return false;
-                }
+                // Create a tap gesture using the GestureDescription API (Android 7.0+)
+                // API 26+ (Android 8.0+) always supports GestureDescription
+                _gestureBuilder = new GestureDescription.Builder();
+                var path = new global::Android.Graphics.Path();
+                path.MoveTo(x, y);
+                
+                // Add the path to the gesture - duration 1ms, starting at 0ms
+                _gestureBuilder.AddStroke(new GestureDescription.StrokeDescription(path, 0, 1));
+                
+                // Dispatch the gesture
+                return DispatchGesture(_gestureBuilder.Build(), null, null);
             }
             catch (Exception ex)
             {

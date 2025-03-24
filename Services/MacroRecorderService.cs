@@ -26,9 +26,13 @@ namespace TouchMacro.Services
         }
         
         /// <summary>
-        /// Gets whether recording is currently active
+        /// Gets or sets whether recording is currently active
         /// </summary>
-        public bool IsRecording => _isRecording;
+        public bool IsRecording
+        {
+            get => _isRecording;
+            set => _isRecording = value;
+        }
         
         /// <summary>
         /// Starts recording a new macro
