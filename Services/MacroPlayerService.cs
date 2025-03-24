@@ -28,9 +28,9 @@ namespace TouchMacro.Services
         public bool IsPlaying => _isPlaying;
         
         /// <summary>
-        /// Event fired when a tap should be simulated
+        /// Event fired when an action should be executed
         /// </summary>
-        public event EventHandler<MacroAction>? OnTapRequested;
+        public event EventHandler<(MacroAction Current, MacroAction? Previous)>? OnActionRequested;
         
         /// <summary>
         /// Event fired when playback starts
@@ -70,6 +70,8 @@ namespace TouchMacro.Services
                 
                 PlaybackStarted?.Invoke(this, EventArgs.Empty);
                 
+                MacroAction? previousAction = null;
+                
                 // Play each action with the appropriate delay
                 for (int i = 0; i < macro.Actions.Count; i++)
                 {
@@ -87,10 +89,20 @@ namespace TouchMacro.Services
                         break;
                     }
                     
-                    _logger.LogInformation($"Executing action {i+1}/{macro.ActionCount}: Tap at ({action.X}, {action.Y})");
+                    _logger.LogInformation($"Executing action {i+1}/{macro.ActionCount}: {action.ActionType} at ({action.X}, {action.Y})");
                     
-                    // Request the tap
-                    OnTapRequested?.Invoke(this, action);
+                    // Request the action execution
+                    OnActionRequested?.Invoke(this, (action, previousAction));
+                    
+                    // Special handling for drag segments - may need additional delay
+                    if (action.ActionType == ActionType.DragMove || action.ActionType == ActionType.DragEnd)
+                    {
+                        // Add a small delay to ensure the drag motion completes
+                        await Task.Delay(Math.Max(50, (int)action.DurationMs / 5), _cts.Token);
+                    }
+                    
+                    // Update previous action for the next iteration
+                    previousAction = action;
                 }
             }
             catch (OperationCanceledException)

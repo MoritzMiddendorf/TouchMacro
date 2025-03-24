@@ -36,13 +36,17 @@ namespace TouchMacro.Platforms.Android.Services
         
         // Android-specific fields
         private WindowManagerLayoutParams? _layoutParams;
+        private WindowManagerLayoutParams? _touchCaptureLayoutParams;
         private IWindowManager? _windowManager;
         private AndroidView? _overlayView;
+        private AndroidView? _touchCaptureView;
         private AndroidImageButton? _recordButton;
         private AndroidImageButton? _playButton;
         private AndroidImageButton? _settingsButton;
         private bool _isOverlayShown = false;
+        private bool _isTouchCaptureShown = false;
         private GestureDetector? _gestureDetector;
+        private ScreenTouchListener? _touchListener;
         
         // Static accessor
         private static OverlayService? _instance;
@@ -76,6 +80,7 @@ namespace TouchMacro.Platforms.Android.Services
             {
                 _playerService.PlaybackStarted += OnPlaybackStarted;
                 _playerService.PlaybackStopped += OnPlaybackStopped;
+                _playerService.OnActionRequested += OnActionRequested;
             }
         }
         
@@ -86,7 +91,7 @@ namespace TouchMacro.Platforms.Android.Services
         {
             _windowManager = GetSystemService(WindowService).JavaCast<IWindowManager>();
             
-            // Create layout parameters for the overlay
+            // Create layout parameters for the control overlay
             _layoutParams = new WindowManagerLayoutParams(
                 ViewGroup.LayoutParams.WrapContent,
                 ViewGroup.LayoutParams.WrapContent,
@@ -99,6 +104,20 @@ namespace TouchMacro.Platforms.Android.Services
             _layoutParams.Gravity = GravityFlags.Top | GravityFlags.Left;
             _layoutParams.X = 100;
             _layoutParams.Y = 100;
+            
+            // Create layout parameters for the touch capture overlay
+            _touchCaptureLayoutParams = new WindowManagerLayoutParams(
+                ViewGroup.LayoutParams.MatchParent,  // Full screen width
+                ViewGroup.LayoutParams.MatchParent,  // Full screen height
+                WindowManagerTypes.ApplicationOverlay,
+                WindowManagerFlags.NotFocusable | WindowManagerFlags.NotTouchModal | WindowManagerFlags.LayoutInScreen,
+                Format.Translucent
+            );
+            
+            // Position at top-left and full screen
+            _touchCaptureLayoutParams.Gravity = GravityFlags.Top | GravityFlags.Left;
+            _touchCaptureLayoutParams.X = 0;
+            _touchCaptureLayoutParams.Y = 0;
         }
         
         /// <summary>
@@ -261,6 +280,46 @@ namespace TouchMacro.Platforms.Android.Services
         }
         
         /// <summary>
+        /// Shows the touch capture overlay for recording touches
+        /// </summary>
+        private void ShowTouchCaptureOverlay()
+        {
+            if (_isTouchCaptureShown || _windowManager == null)
+                return;
+                
+            // Create a fully transparent view to capture touches
+            var context = this.ApplicationContext;
+            _touchCaptureView = new AndroidView(context);
+            
+            // Make the view completely transparent
+            _touchCaptureView.SetBackgroundColor(Android.Graphics.Color.Transparent);
+            
+            // Create and set the touch listener that will record touches
+            _touchListener = new ScreenTouchListener(this, _recorderService, _logger);
+            _touchCaptureView.SetOnTouchListener(_touchListener);
+            
+            // Add the view to the window manager
+            _windowManager.AddView(_touchCaptureView, _touchCaptureLayoutParams);
+            _isTouchCaptureShown = true;
+            
+            _logger?.LogInformation("Touch capture overlay shown");
+        }
+        
+        /// <summary>
+        /// Hides the touch capture overlay
+        /// </summary>
+        private void HideTouchCaptureOverlay()
+        {
+            if (!_isTouchCaptureShown || _windowManager == null || _touchCaptureView == null)
+                return;
+                
+            // Remove the overlay from the window manager
+            _windowManager.RemoveViewImmediate(_touchCaptureView);
+            _isTouchCaptureShown = false;
+            _logger?.LogInformation("Touch capture overlay hidden");
+        }
+        
+        /// <summary>
         /// Handles the record button click
         /// </summary>
         private void OnRecordButtonClick(object sender, EventArgs e)
@@ -273,6 +332,9 @@ namespace TouchMacro.Platforms.Android.Services
                 _recorderService.IsRecording = false;  // Temporarily set to false for visual update
                 UpdateButtonStates();
                 
+                // Hide the touch capture overlay
+                HideTouchCaptureOverlay();
+                
                 // Show dialog to name and save the macro
                 ShowSaveMacroDialog();
             }
@@ -281,6 +343,9 @@ namespace TouchMacro.Platforms.Android.Services
                 // Start recording
                 _recorderService?.StartRecording();
                 UpdateButtonStates();
+                
+                // Show the touch capture overlay to capture touches
+                ShowTouchCaptureOverlay();
             }
         }
         
@@ -457,6 +522,23 @@ namespace TouchMacro.Platforms.Android.Services
         }
         
         /// <summary>
+        /// Handles action requested events from the player service
+        /// </summary>
+        private void OnActionRequested(object sender, (MacroAction Current, MacroAction? Previous) actionData)
+        {
+            // Get the accessibility service instance to perform the action
+            var accessibilityService = MacroAccessibilityService.Instance;
+            if (accessibilityService == null)
+            {
+                _logger?.LogWarning("Cannot execute action - accessibility service not available");
+                return;
+            }
+            
+            // Execute the action using the accessibility service
+            accessibilityService.ExecuteAction(actionData.Current, actionData.Previous);
+        }
+        
+        /// <summary>
         /// Moves the overlay to a new position
         /// </summary>
         public void MoveOverlay(int deltaX, int deltaY)
@@ -467,15 +549,8 @@ namespace TouchMacro.Platforms.Android.Services
             _layoutParams.X += deltaX;
             _layoutParams.Y += deltaY;
             
-            try
-            {
-                // We're using AndroidView and not Microsoft.Maui.Controls.View here
-                _windowManager.UpdateViewLayout(_overlayView, _layoutParams);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error updating overlay position");
-            }
+            // We're using AndroidView and not Microsoft.Maui.Controls.View here
+            _windowManager.UpdateViewLayout(_overlayView, _layoutParams);
         }
         
         /// <summary>
@@ -486,29 +561,25 @@ namespace TouchMacro.Platforms.Android.Services
             if (!_isOverlayShown)
                 return;
                 
-            try
-            {
-                // Remove the overlay from the window manager
-                // We're using AndroidView and not Microsoft.Maui.Controls.View here
-                _windowManager.RemoveViewImmediate(_overlayView);
-                _isOverlayShown = false;
+            // Also hide the touch capture overlay if it's shown
+            HideTouchCaptureOverlay();
+            
+            // Remove the overlay from the window manager
+            // We're using AndroidView and not Microsoft.Maui.Controls.View here
+            _windowManager.RemoveViewImmediate(_overlayView);
+            _isOverlayShown = false;
+            
+            // Clean up event handlers
+            if (_recordButton != null)
+                _recordButton.Click -= OnRecordButtonClick;
                 
-                // Clean up event handlers
-                if (_recordButton != null)
-                    _recordButton.Click -= OnRecordButtonClick;
-                    
-                if (_playButton != null)
-                    _playButton.Click -= OnPlayButtonClick;
-                    
-                if (_settingsButton != null)
-                    _settingsButton.Click -= OnSettingsButtonClick;
-                    
-                _logger?.LogInformation("Overlay hidden");
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error hiding overlay");
-            }
+            if (_playButton != null)
+                _playButton.Click -= OnPlayButtonClick;
+                
+            if (_settingsButton != null)
+                _settingsButton.Click -= OnSettingsButtonClick;
+                
+            _logger?.LogInformation("Overlay hidden");
         }
         
         /// <summary>
@@ -523,6 +594,7 @@ namespace TouchMacro.Platforms.Android.Services
             {
                 _playerService.PlaybackStarted -= OnPlaybackStarted;
                 _playerService.PlaybackStopped -= OnPlaybackStopped;
+                _playerService.OnActionRequested -= OnActionRequested;
             }
             
             // Hide the overlay
@@ -559,17 +631,54 @@ namespace TouchMacro.Platforms.Android.Services
             
             public override bool OnScroll(MotionEvent? e1, MotionEvent? e2, float distanceX, float distanceY)
             {
-                try
-                {
-                    // Move the overlay in the opposite direction of the distance (for dragging)
-                    _service.MoveOverlay((int)(-distanceX), (int)(-distanceY));
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "Error in drag handler");
+                // Move the overlay in the opposite direction of the distance (for dragging)
+                _service.MoveOverlay((int)(-distanceX), (int)(-distanceY));
+                return true;
+            }
+        }
+        
+        /// <summary>
+        /// Touch event listener for capturing screen touches when recording
+        /// </summary>
+        private class ScreenTouchListener : Java.Lang.Object, AndroidView.IOnTouchListener
+        {
+            private readonly OverlayService _service;
+            private readonly MacroRecorderService _recorderService;
+            private readonly ILogger _logger;
+            
+            public ScreenTouchListener(OverlayService service, MacroRecorderService recorderService, ILogger logger)
+            {
+                _service = service;
+                _recorderService = recorderService;
+                _logger = logger;
+            }
+            
+            public bool OnTouch(AndroidView? v, MotionEvent? e)
+            {
+                if (e == null || !_recorderService.IsRecording)
                     return false;
+                
+                switch (e.Action & MotionEventActions.Mask)
+                {
+                    case MotionEventActions.Down:
+                        _logger.LogInformation($"Touch DOWN at ({e.RawX}, {e.RawY})");
+                        _recorderService.RecordTouchDown(e.RawX, e.RawY);
+                        break;
+                        
+                    case MotionEventActions.Move:
+                        _logger.LogInformation($"Touch MOVE to ({e.RawX}, {e.RawY})");
+                        _recorderService.RecordTouchMove(e.RawX, e.RawY);
+                        break;
+                        
+                    case MotionEventActions.Up:
+                    case MotionEventActions.Cancel:
+                        _logger.LogInformation($"Touch UP at ({e.RawX}, {e.RawY})");
+                        _recorderService.RecordTouchUp(e.RawX, e.RawY);
+                        break;
                 }
+                
+                // Return false to allow the event to be passed to the system
+                return false;
             }
         }
     }

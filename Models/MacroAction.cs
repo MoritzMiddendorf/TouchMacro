@@ -4,7 +4,18 @@ using SQLite;
 namespace TouchMacro.Models
 {
     /// <summary>
-    /// Represents a single tap action in a macro
+    /// Action types that can be recorded and played back
+    /// </summary>
+    public enum ActionType
+    {
+        Tap = 0,
+        DragStart = 1,
+        DragMove = 2,
+        DragEnd = 3
+    }
+
+    /// <summary>
+    /// Represents a single action in a macro (tap or drag)
     /// </summary>
     [Table("MacroAction")]
     public class MacroAction
@@ -22,12 +33,12 @@ namespace TouchMacro.Models
         public int MacroId { get; set; }
         
         /// <summary>
-        /// X-coordinate of the tap
+        /// X-coordinate of the action
         /// </summary>
         public float X { get; set; }
         
         /// <summary>
-        /// Y-coordinate of the tap
+        /// Y-coordinate of the action
         /// </summary>
         public float Y { get; set; }
         
@@ -40,5 +51,15 @@ namespace TouchMacro.Models
         /// Sequence number of this action within the macro
         /// </summary>
         public int SequenceNumber { get; set; }
+        
+        /// <summary>
+        /// Type of action (tap, drag start, drag move, drag end)
+        /// </summary>
+        public ActionType ActionType { get; set; } = ActionType.Tap;
+        
+        /// <summary>
+        /// Duration in milliseconds (for drag actions)
+        /// </summary>
+        public long DurationMs { get; set; } = 0;
     }
 }
